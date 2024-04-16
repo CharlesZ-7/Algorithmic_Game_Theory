@@ -1,8 +1,19 @@
 from adx.agents import NDaysNCampaignsAgent
 from adx.tier1_ndays_ncampaign_agent import Tier1NDaysNCampaignsAgent
 from adx.adx_game_simulator import AdXGameSimulator
-from adx.structures import Bid, Campaign, BidBundle 
+from adx.structures import Bid, Campaign, BidBundle, MarketSegment
 from typing import Set, Dict
+
+market_segments = [
+    MarketSegment(("Male", "Young", "LowIncome")),
+    MarketSegment(("Male", "Young", "HighIncome")),
+    MarketSegment(("Male", "Old", "LowIncome")),
+    MarketSegment(("Male", "Old", "HighIncome")),
+    MarketSegment(("Female", "Young", "LowIncome")),
+    MarketSegment(("Female", "Young", "HighIncome")),
+    MarketSegment(("Female", "Old", "LowIncome")),
+    MarketSegment(("Female", "Old", "HighIncome"))
+]
 
 class MyNDaysNCampaignsAgent(NDaysNCampaignsAgent):
 
@@ -36,23 +47,28 @@ class MyNDaysNCampaignsAgent(NDaysNCampaignsAgent):
 
         # --- basic syntax to create and send bids ---
 
-        # iterate over campaigns
-        campaigns = self.get_active_campaigns()
-        for campaign in campaigns:
+        # all campaigns, campaigns from auction and random campaigns
+        campaigns = self.get_active_campaigns().union(self.my_campaigns)
 
-            # set spending limit 
-            limit = campaign.budget
+        # iterate over campaigns
+        for campaign in campaigns:
 
             # create bids
             bid_entries = set()
-            n = len(campaign.target_segment.all_segments()) # TODO: does this give overlapping segments???
-            for segment in campaign.target_segment.all_segments():
-                
-                # auction items (market segment) # this isn't a set even though the api says it's supposed to be...
-                # auction_item = set()
-                # auction_item.add(segment)
-                auction_item = segment
 
+            # find all subsets
+            subsets = set()
+            for segment in MarketSegment.all_segments():
+                if campaign.target_segment.issuperset(segment):
+                    subsets.add(segment)
+
+            # iterate over subsets
+            n = len(subsets)
+            for segment in subsets:
+                
+                # auction items (market segment) # this is a market segment...
+                auction_item = segment
+                
                 # bid per item
                 bid_per_item = campaign.budget / (n * campaign.reach)
 
@@ -65,6 +81,10 @@ class MyNDaysNCampaignsAgent(NDaysNCampaignsAgent):
                 )
                 bid_entries.add(bid)
 
+            # set spending limit 
+            limit = campaign.budget
+
+            # bundle bid and return
             bundle = BidBundle(
                 campaign_id=campaign.uid,
                 limit=limit,
@@ -104,8 +124,7 @@ class MyNDaysNCampaignsAgent(NDaysNCampaignsAgent):
 
         # iterate over campaigns
         for campaign in campaigns_for_auction:
-            bids[campaign] = 1.
-
+            bids[campaign] = 1000.
 
         return bids
 
@@ -115,4 +134,4 @@ if __name__ == "__main__":
 
     # Don't change this. Adapt initialization to your environment
     simulator = AdXGameSimulator()
-    simulator.run_simulation(agents=test_agents, num_simulations=500)
+    simulator.run_simulation(agents=test_agents, num_simulations=1) # originally 500 
