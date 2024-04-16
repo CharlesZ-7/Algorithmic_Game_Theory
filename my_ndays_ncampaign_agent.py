@@ -9,7 +9,7 @@ class MyNDaysNCampaignsAgent(NDaysNCampaignsAgent):
     def __init__(self):
         # TODO: fill this in (if necessary)
         super().__init__()
-        self.name = ""  # TODO: enter a name.
+        self.name = "My Agent"  # TODO: enter a name.
 
     def on_new_game(self) -> None:
         # TODO: fill this in (if necessary)
@@ -30,7 +30,47 @@ class MyNDaysNCampaignsAgent(NDaysNCampaignsAgent):
 
         # during the last days of the campaign, we don't care about the quality score...
 
-        # 
+        # ... 
+
+
+
+        # --- basic syntax to create and send bids ---
+
+        # iterate over campaigns
+        campaigns = self.get_active_campaigns()
+        for campaign in campaigns:
+
+            # set spending limit 
+            limit = campaign.budget
+
+            # create bids
+            bid_entries = set()
+            n = len(campaign.target_segment.all_segments()) # TODO: does this give overlapping segments???
+            for segment in campaign.target_segment.all_segments():
+                
+                # auction items (market segment) # this isn't a set even though the api says it's supposed to be...
+                # auction_item = set()
+                # auction_item.add(segment)
+                auction_item = segment
+
+                # bid per item
+                bid_per_item = campaign.budget / (n * campaign.reach)
+
+                # create bid object
+                bid = Bid(
+                    bidder=self,
+                    auction_item=auction_item,
+                    bid_per_item=bid_per_item,
+                    bid_limit=campaign.budget / n
+                )
+                bid_entries.add(bid)
+
+            bundle = BidBundle(
+                campaign_id=campaign.uid,
+                limit=limit,
+                bid_entries=bid_entries
+            )
+            bundles.add(bundle)
 
         return bundles
 
@@ -55,6 +95,17 @@ class MyNDaysNCampaignsAgent(NDaysNCampaignsAgent):
             # some kind of ai here?? we need better ai's 
             # some kind of history...
             # lenght of contracts... fill these as fast as we can...
+
+        # ... 
+
+
+
+        # --- basic syntax to create and send bids ---
+
+        # iterate over campaigns
+        for campaign in campaigns_for_auction:
+            bids[campaign] = 1.
+
 
         return bids
 
