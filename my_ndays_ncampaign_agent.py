@@ -50,7 +50,7 @@ class MyNDaysNCampaignsAgent(NDaysNCampaignsAgent):
         # Loop through Campaigns
         for campaign in campaigns_on_going:
             # Check if there are enough goods to completely allocate the campaign.
-            if sum([remaining_supply[demography] for user in impressions if user.market_segment in campaign.target_segment]) >= campaign.reach
+            if sum([remaining_supply[demography] for user in impressions if user.market_segment in campaign.target_segment]) >= campaign.reach)
                 # Loop through Goods.
                 for user in supply.keys():
                     if user.market_segment in campaign.target_segment:

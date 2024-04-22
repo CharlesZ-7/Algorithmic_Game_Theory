@@ -1,25 +1,12 @@
-# This uses the waterfall algorithm to calculate optimal prices for a
-# campaign in a second price auction.
-
 from typing import Set
 from adx.structures import Campaign, MarketSegment
 import numpy as np
 
-from typing import Dict
+# This uses the waterfall algorithm to calculate optimal prices for a
+# campaign in a second price auction.
 
 
-
-def func(seomthing: int) -> Dict[int, float]:
-    pass
-
-def func(seomthing):
-    
-    output: Dict[int, float] = {
-        3: 1.0
-    }
-
-    return output
-
+# so far this only creates the allocation and price tables...
 
 
 def market_segment_to_key(segment: MarketSegment):
