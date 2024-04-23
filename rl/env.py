@@ -2,16 +2,20 @@
 import gymnasium as gym
 import numpy as np
 import random
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Set
 from collections import defaultdict
 from math import isfinite, atan
+
+import sys, os
+sys.path.append("..")
+# sys.path.append(os.path.abspath(os.path.join(os.path.pardir, 'adx')))
+# sys.path.append(sys.path[0] + "/../adx")
 
 from adx.structures import Campaign, Bid, BidBundle, MarketSegment
 from adx.pmfs import PMF
 from adx.tier1_ndays_ncampaign_agent import Tier1NDaysNCampaignsAgent
 from adx.states import CampaignBidderState
 from adx.agents import NDaysNCampaignsAgent
-
 
 CONFIG = {
         'num_agents': 10,
@@ -79,31 +83,71 @@ CONFIG = {
 def calculate_effective_reach(x: int, R: int) -> float:
     return (2.0 / 4.08577) * (atan(4.08577 * ((x + 0.0) / R) - 3.08577) - atan(-3.08577))
 
+def hash_segment(segment: MarketSegment):
+
+    segments = [
+        MarketSegment(("Male", "Young")),
+        MarketSegment(("Male", "Old")),
+        MarketSegment(("Male", "LowIncome")),
+        MarketSegment(("Male", "HighIncome")),
+        MarketSegment(("Female", "Young")),
+        MarketSegment(("Female", "Old")),
+        MarketSegment(("Female", "LowIncome")),
+        MarketSegment(("Female", "HighIncome")),
+        MarketSegment(("Young", "LowIncome")),
+        MarketSegment(("Young", "HighIncome")),
+        MarketSegment(("Old", "LowIncome")),
+        MarketSegment(("Old", "HighIncome")),
+        MarketSegment(("Male", "Young", "LowIncome")),
+        MarketSegment(("Male", "Young", "HighIncome")),
+        MarketSegment(("Male", "Old", "LowIncome")),
+        MarketSegment(("Male", "Old", "HighIncome")),
+        MarketSegment(("Female", "Young", "LowIncome")),
+        MarketSegment(("Female", "Young", "HighIncome")),
+        MarketSegment(("Female", "Old", "LowIncome")),
+        MarketSegment(("Female", "Old", "HighIncome"))
+    ]
+    for i in range(len(segments)):
+        if segment == segments[i]: return i
+    raise Exception("invalid market segment given to hashing function!")
 
 class MyEnv(gym.Env):
 
     def __init__(self, env_config):
 
         # env spaces
-        self.action_space = gym.spaces.Discrete(5)
-        self.observation_space = gym.spaces.Discrete(5)
+        self.action_space = gym.spaces.Box(
+            low=np.array([0] * 8*5, dtype=np.float32),
+            high=np.array([1e2] * 8*5, dtype=np.float32),
+            dtype=np.float32
+        )
+        self.observation_space = gym.spaces.Box(
+            # day, quality score, profit, ... campaign info ...
+            # low   = np.array([0,  0, -1e3] + [0] * 7*5),
+            # high  = np.array([10, 1,  1e5] + [1e5] * 7*5),
+            # dtype = [np.int64, np.float32, np.float32] + [np.float32] * 7*5
+            low=np.array([-1e4] * (3 + 7*5), dtype=np.float32),
+            high=np.array([1e5] * (3 + 7*5), dtype=np.float32),
+            dtype=np.float32
+        )
 
         # AdX init
-        if config is None:
-            config = CONFIG
-        self.num_agents = config['num_agents']
-        self.num_days = config['num_days']
-        self.α = config['quality_score_alpha']
-        self.campaigns_per_day = config['campaigns_per_day']
+        # if env_config is None:
+        #     env_config = CONFIG
+        env_config = CONFIG # overwrite config
+        self.num_agents = env_config['num_agents']
+        self.num_days = env_config['num_days']
+        self.α = env_config['quality_score_alpha']
+        self.campaigns_per_day = env_config['campaigns_per_day']
         self.agents: List = []
-        self.campaign_reach_dist = config['campaign_reach_dist']
-        self.campaign_length_dist = config['campaign_length_dist']
-        self.market_segment_dist = config['market_segment_dist']
-        self.market_segment_pop = config['market_segment_pop']
-        self.user_segment_dist = PMF(config['user_segment_pmf'])
+        self.campaign_reach_dist = env_config['campaign_reach_dist']
+        self.campaign_length_dist = env_config['campaign_length_dist']
+        self.market_segment_dist = env_config['market_segment_dist']
+        self.market_segment_pop = env_config['market_segment_pop']
+        self.user_segment_dist = PMF(env_config['user_segment_pmf'])
         self.sub_segments = defaultdict(list)
-        for user_seg in config['user_segment_pmf']:
-            for market_seg in config['market_segment_dist']:
+        for user_seg in env_config['user_segment_pmf']:
+            for market_seg in env_config['market_segment_dist']:
                 if market_seg.issubset(user_seg):
                     self.sub_segments[user_seg].append(market_seg)
 
@@ -171,7 +215,7 @@ class MyEnv(gym.Env):
 
             for i, bid in enumerate(bids):
                 campaign_id = bid_to_bundle[bid].campaign_id
-                price = bids[i + 1].bid_per_item if i + 1 < len(bids) else 0     
+                price = bids[i + 1].bid_per_item if i + 1 < len(bids) else 0   
                 bidder_states[bid.bidder].spend[campaign_id] += price
                 over_bid_limit = bid_to_spend[bid] + price > bid.bid_limit
                 over_bundle_limit = bidder_states[bid.bidder].spend[campaign_id] + price > daily_limits[campaign_id]
@@ -230,7 +274,7 @@ class MyEnv(gym.Env):
     def reset(self, seed=None, options=None):
 
         # input agents
-        agents: list[NDaysNCampaignsAgent] = ...
+        agents: list[NDaysNCampaignsAgent] = [Tier1NDaysNCampaignsAgent(name=f"Agent {i + 1}") for i in range(10)]
 
         # logging profits
         self.total_profits = {agent : 0.0 for agent in agents}
@@ -252,8 +296,34 @@ class MyEnv(gym.Env):
         # reset day
         self.day = 0
 
+        # construct obs
+        rl_agent = self.agents[0]
+
+        # current day and quality score
+        day = self.day
+        quality_score = rl_agent.quality_score
+
+        # campaigns
+        campaigns = list(rl_agent.get_active_campaigns().union(rl_agent.my_campaigns))
+        campaign_features = np.zeros((7*5), dtype=np.float32) # at most 7 campaigns
+        for i in range(len(campaigns)):
+            campaign_features[0+i*7] = campaigns[i].budget
+            campaign_features[1+i*7] = campaigns[i].reach
+            campaign_features[2+i*7] = campaigns[i].start
+            campaign_features[3+i*7] = campaigns[i].end
+            campaign_features[4+i*7] = campaigns[i].cumulative_cost
+            campaign_features[5+i*7] = campaigns[i].cumulative_reach
+            campaign_features[6+i*7] = hash_segment(campaigns[i].target_segment)
+
+        # final observation
+        obs = np.zeros(3 + 7*5)
+        obs[0] = day
+        obs[1] = quality_score
+        obs[2] = rl_agent.profit
+        obs[3:] = campaign_features
+
         # <obs>, <info: dict>
-        return np.int64(1), {}
+        return obs, {}
 
     def step_simulation(self) -> bool:
 
@@ -267,13 +337,13 @@ class MyEnv(gym.Env):
 
         # Generate new campaigns and filter
         if self.day + 1 < self.num_days + 1:
-            new_campaigns = [self.generate_campaign(start_day=self.day + 1) for _ in range(self.campaigns_per_day)]
-            new_campaigns = [c for c in new_campaigns if c.end_day <= self.num_days]
+            self.new_campaigns = [self.generate_campaign(start_day=self.day + 1) for _ in range(self.campaigns_per_day)]
+            self.new_campaigns = [c for c in self.new_campaigns if c.end_day <= self.num_days]
             
             # Solicit campaign bids and run campaign auctions
-            agent_bids = dict()
+            self.agent_bids = dict()
             for agent in self.agents:
-                agent_bids[agent] = agent.get_campaign_bids(new_campaigns)
+                self.agent_bids[agent] = agent.get_campaign_bids(self.new_campaigns)
 
         # Solicit ad bids from agents and run ad auctions
         ad_bids = []
@@ -309,7 +379,7 @@ class MyEnv(gym.Env):
             agent.profit += todays_profit
         
         # Run campaign auctions
-        self.run_campaign_auctions(agent_bids, new_campaigns)
+        self.run_campaign_auctions(self.agent_bids, self.new_campaigns)
         # Run campaign endowments
         for agent in self.agents:
             if random.random() < min(1, agent.quality_score):
@@ -329,26 +399,116 @@ class MyEnv(gym.Env):
 
     def step(self, action):
 
-        # how do we convert stuff into stuff here...
-        # what is life...
+        # cache rl-agent
+        rl_agent: NDaysNCampaignsAgent = self.agents[0]
 
-        # what is anything....
+        # action
+        segments = [
+            MarketSegment(("Male", "Young", "LowIncome")),
+            MarketSegment(("Male", "Young", "HighIncome")),
+            MarketSegment(("Male", "Old", "LowIncome")),
+            MarketSegment(("Male", "Old", "HighIncome")),
+            MarketSegment(("Female", "Young", "LowIncome")),
+            MarketSegment(("Female", "Young", "HighIncome")),
+            MarketSegment(("Female", "Old", "LowIncome")),
+            MarketSegment(("Female", "Old", "HighIncome"))
+        ]
+        
+        # redefine agent bidding functions
+        def rl_agent_get_ad_bids() -> Set[BidBundle]:
+            bundles = set()
+            n = len(segments)
+            campaigns = rl_agent.get_active_campaigns().union(rl_agent.my_campaigns)
+            index = 0
+            for campaign in campaigns:
+                if index >= 5: break
+                bid_entries = set()
+                segment_index = 0
+                for segment in segments:
+                    auction_item = segment
+                    bid_per_item = min(action[segment_index + 8*index], campaign.budget / n)
+                    bid = Bid(
+                        bidder=rl_agent,
+                        auction_item=auction_item,
+                        bid_per_item=bid_per_item,
+                        bid_limit=campaign.budget / n
+                    )
+                    segment_index += 1
+                    bid_entries.add(bid)
+                index += 1
+                limit = campaign.budget
+                bundle = BidBundle(
+                    campaign_id=campaign.uid,
+                    limit=limit,
+                    bid_entries=bid_entries
+                )
+                bundles.add(bundle)
+            return bundles
+    
+        def rl_agent_get_campaign_bids(campaigns_for_auction: Set[Campaign]) -> Dict[Campaign, float]:
+            bids = {}
+            campaigns = rl_agent.get_active_campaigns().union(rl_agent.my_campaigns)
+            for campaign in campaigns_for_auction:
+                if (len(campaigns) >= 5): break 
+                bids[campaign] = campaign.reach # bid the reach... eventually bid higher than the reach
+            return bids
 
+        # redefine agent bidding functions
+        rl_agent.get_ad_bids = rl_agent_get_ad_bids
+        rl_agent.get_campaign_bids = rl_agent_get_campaign_bids
+        
+        # step AdX auction
+        complete = self.step_simulation()
 
+        # current day and quality score
+        day = self.day
+        quality_score = rl_agent.quality_score
 
+        # campaigns
+        campaigns = list(rl_agent.get_active_campaigns().union(rl_agent.my_campaigns))
+        campaign_features = np.zeros((7*5), dtype=np.float32) # at most 7 campaigns
+        for i in range(len(campaigns)):
+            if i >= 5: break # capping out
+            campaign_features[0+i*7] = campaigns[i].budget
+            campaign_features[1+i*7] = campaigns[i].reach
+            campaign_features[2+i*7] = campaigns[i].start
+            campaign_features[3+i*7] = campaigns[i].end
+            campaign_features[4+i*7] = campaigns[i].cumulative_cost
+            campaign_features[5+i*7] = campaigns[i].cumulative_reach
+            campaign_features[6+i*7] = hash_segment(campaigns[i].target_segment)
+
+        # final observation
+        obs = np.zeros(3 + 7*5)
+        obs[0] = day
+        obs[1] = quality_score
+        obs[2] = rl_agent.profit
+        obs[3:] = campaign_features
 
         # <obs>, <reward: float>, <terminated: bool>, <truncated: bool>, <info: dict>
-        return np.int64(1), 0.5, True, False, {}
+        return obs, rl_agent.profit, complete, False, {}
     
-    
-    
-# TODO:
-    # figure out observation and action spaces
-        # init
-        # reset
-        # step
-    # figure out how to inject actions into the agent...
-        # campaign bids...
-        # ad bids...
+# env testing
+if __name__ == "__main__":
+    print("Hello Env!")
 
-    # step through the simulation...
+    env = MyEnv(None)
+    env.reset()
+
+    for _ in range(5):  
+        obs, rewards, done, truncated, info = env.step(env.action_space.sample())
+        print(obs)
+
+
+# notes:
+    # maybe it has too much control right now...
+    # it needs to be able to increase or decrease a bit...
+
+
+    # find the critical bid and then let it increase or decrease bit by bit...
+
+
+    # better define the observation spaces???
+    # get these smaller so rl can learn better maybe...
+    # but also maybe not...
+
+    # just let it play against a single "smart agent"

@@ -25,17 +25,19 @@ config = (
 algo = config.build()
 
 # training
+for _ in range(5):
+    algo.train()
 print(algo.train())
 
+
+
 # save results
-save_result = algo.save()
-path_to_checkpoint = save_result.checkpoint.path
-print(
-    "An Algorithm checkpoint has been created inside directory: "
-    f"'{path_to_checkpoint}'."
-)
-
-
+# save_result = algo.save()
+# path_to_checkpoint = save_result.checkpoint.path
+# print(
+#     "An Algorithm checkpoint has been created inside directory: "
+#     f"'{path_to_checkpoint}'."
+# )
 
 # to load in results
 # Algorithm.from_checkpoint(path_to_checkpoint)
@@ -44,10 +46,3 @@ print(
 
 # evaluation on a single step...
 # print(algo.compute_single_action(np.int64(1)))
-
-
-
-
-
-
-
