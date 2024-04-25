@@ -23,9 +23,9 @@ market_segments = [
 
 class CriticalNDaysNCampaignsAgent(NDaysNCampaignsAgent):
 
-    def __init__(self):
+    def __init__(self, name = "Ciritical Agent"):
         super().__init__()
-        self.name = "Critical Agent"
+        self.name = name
 
     def on_new_game(self) -> None:
         pass
@@ -70,7 +70,8 @@ class CriticalNDaysNCampaignsAgent(NDaysNCampaignsAgent):
 
 if __name__ == "__main__":
     # Here's an opportunity to test offline against some TA agents. Just run this file to do so.
-    test_agents = [CriticalNDaysNCampaignsAgent()] + [Tier1NDaysNCampaignsAgent(name=f"Agent {i + 1}") for i in range(9)]
+    # test_agents = [CriticalNDaysNCampaignsAgent()] + [Tier1NDaysNCampaignsAgent(name=f"Agent {i + 1}") for i in range(9)]
+    test_agents = [CriticalNDaysNCampaignsAgent()] + [CriticalNDaysNCampaignsAgent(name=f"Agent {i + 1}") for i in range(9)]
 
     # Don't change this. Adapt initialization to your environment
     simulator = AdXGameSimulator()
