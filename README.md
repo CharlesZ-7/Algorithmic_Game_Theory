@@ -1,42 +1,23 @@
-# CS1440/2440 Final Project: AdX
+# CS1440/2440 Final Project: Ad Exchange Simulation (Under Constructions...)
 
-## Introduction
+# Introduction
 
-The AdX Game: This final project is your chance to put everything we've learned into practice, especially the cool strategies from the last few labs. It's going to be remote and a lot more free-form than what we're used to, so there's plenty of room to experiment and find what works best for your agent. I hope you all have fun!
+# Ad Auctions
 
-## Setup and Installation
+## Waterfall Heuristic
 
-Follow these steps to set up your environment for the AdX game.
+## Walrasian Equilibrium
 
-### Step 1: Git Clone this Repository
+# Campaign Auctions
 
-Open your terminal and navigate to where you want to clone the repository
+## Reinforcement Learning
 
-```bash
-git clone https://github.com/brown-agt/AdX-Stencil-2024.git
-```
+### Backgournd Noise Cancellation
 
-### Step 2: Create a Virtual Environment (Optional)
-If you plan to use any external packages, it's a good idea to do this
+### Rewards and Penalties
 
-Please then navigate to your project directory. Run the following commands to create a Python virtual environment named `.venv`.
+# Summary
 
-If you own a Mac
+# References
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-```
-
-If you own a Windows
-
-```bash
-python3 -m venv .venv
-.venv\Scripts\activate
-```
-
-## Notes about the python code
-
-- Please Please Please refer to the [final project handout](https://cs.brown.edu/courses/csci1440/labs/2024/final/AdX_Game_Final_Project_Spec.pdf) and read through it carefully! It contains a lot of information specific to this implementation of the spectrum auction and making sure your code works for submission.
-- Implement your agent in the `my_ndays_ncmapaign_agent.py` file. The `adx` folder contains all the code for the structures of the game and the simulator.
-- Please let us know if you want to import any new packages and we will install it on our end after checking it so that the code can import it in the final submission. 
+- [final project handout](https://cs.brown.edu/courses/csci1440/labs/2024/final/AdX_Game_Final_Project_Spec.pdf) 
