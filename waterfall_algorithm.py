@@ -4,59 +4,7 @@ import numpy as np
 
 # Given campaigns, calculates alllocation and price tables
 
-# TODO:
-
-
-    # how to get this to beat the normal agents...
-
-    # get a specific agent to beat out the critical bidding agents...
-
-
-
-
-    # figure out how to train the rl better...
-    # get agents that are decently smart to train against...
-
-    # smartest agent without using rl...
-
-    # figure out different possible strategies for this...
-        # 2 max random agents...
-        # 2 critical bidding agents
-        # rest are very smart agents...
-
-
-
-
-
-    # get the rl to predict campaigns out there...
-        # if this proves to be too difficult of a problem, just run the WF or WE on what we do know and then let rl to shade shit higher or lower...
-
-        # simplify this problem by only caring about stuff...
-        # wait why cant we just use our knowledge to guess this stuff...
-
-        # no reason to have rl deal with this...
-
-
-
-    
-    # more history information neeeded... figure out if we won the auctions or not...
-    # if we did lose that stuff then inputs given as shtuff...
-
-    # tuning hyperparameters... higher learning rate because we don't have 1million training iterations...
-
-
-
-
-    # what's the difference between active campaigns and my campaigns...
-    # why tf does this not include the first campaign... sort these out by the day to filter stuff out...
-
-
-
-
-
-
-
-def run(day: int, campaigns: Set[Campaign]) -> Dict[Campaign, List[Tuple[MarketSegment, float, int]]]:
+def waterfall(day: int, campaigns: Set[Campaign]) -> Dict[Campaign, List[Tuple[MarketSegment, float, int]]]:
 
     # frequencies for the day
     user_frequencies = {
@@ -70,26 +18,27 @@ def run(day: int, campaigns: Set[Campaign]) -> Dict[Campaign, List[Tuple[MarketS
         MarketSegment(("Female", "Old", "HighIncome")): 407
     }
 
-    # debugging example
-    user_frequencies = {
-        MarketSegment(("Male", "Young", "LowIncome")): 10,
-        MarketSegment(("Male", "Young", "HighIncome")): 517,
-        MarketSegment(("Male", "Old", "LowIncome")): 1795,
-        MarketSegment(("Male", "Old", "HighIncome")): 808,
-        MarketSegment(("Female", "Young", "LowIncome")): 1980,
-        MarketSegment(("Female", "Young", "HighIncome")): 256,
-        MarketSegment(("Female", "Old", "LowIncome")): 2401,
-        MarketSegment(("Female", "Old", "HighIncome")): 407
-    }
+    # # debugging example
+    # user_frequencies = {
+    #     MarketSegment(("Male", "Young", "LowIncome")): 10,
+    #     MarketSegment(("Male", "Young", "HighIncome")): 517,
+    #     MarketSegment(("Male", "Old", "LowIncome")): 1795,
+    #     MarketSegment(("Male", "Old", "HighIncome")): 808,
+    #     MarketSegment(("Female", "Young", "LowIncome")): 1980,
+    #     MarketSegment(("Female", "Young", "HighIncome")): 256,
+    #     MarketSegment(("Female", "Old", "LowIncome")): 2401,
+    #     MarketSegment(("Female", "Old", "HighIncome")): 407
+    # }
     # user_frequencies = {
     #     MarketSegment(("Male",)): 8,
     #     MarketSegment(("Female",)): 7
     # }
 
-    # remove campaigns if their end date has passed
+    # remove campaigns if their end date has passed or start date is too early
     reduced_campaigns: Set[Campaign] = set()
     for campaign in campaigns:
         if campaign.end_day < day: continue
+        if campaign.start_day > day: continue
         reduced_campaigns.add(campaign)
     campaigns = reduced_campaigns
     
@@ -175,4 +124,4 @@ if __name__ == "__main__":
     campaigns.add(campaign_1)
     campaigns.add(campaign_2)
 
-    print(run(0, campaigns))
+    print(waterfall(0, campaigns))
