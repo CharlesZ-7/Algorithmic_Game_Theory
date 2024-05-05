@@ -2,7 +2,7 @@
 
 # Introduction
 
-# Ad Auctions
+# Advertising Auctions
 
 ## Waterfall Heuristic
 
@@ -10,11 +10,9 @@
 
 # Campaign Auctions
 
-## Reinforcement Learning
+## Q Learning
 
-### Backgournd Noise Cancellation
-
-### Rewards and Penalties
+## LSTM Neural Network
 
 # Summary
 
