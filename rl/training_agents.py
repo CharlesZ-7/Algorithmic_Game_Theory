@@ -562,8 +562,13 @@ class WFNDaysNCampaignsAgent(BetterNDaysNCampaignsAgent):
 
 if __name__ == "__main__":
     # Here's an opportunity to test offline against some TA agents. Just run this file to do so.
-    # test_agents = [CriticalNDaysNCampaignsAgent()] + [Tier1NDaysNCampaignsAgent(name=f"Agent {i + 1}") for i in range(9)]
     
+    # test_agents = [WFNDaysNCampaignsAgent()] + [CriticalNDaysNCampaignsAgent(name=f"Agent {i + 1}") for i in range(9)]
+    
+    # simulator = AdXGameSimulator()
+    # simulator.run_simulation(agents=test_agents, num_simulations=500)
+
+
     # smart_agent = SmartNDaysNCampaignsAgent()
     randcamp_agent = RandCampNDaysNCampaignsAgent()
     campaign_agent = CampaignNDaysNCampaignsAgent()
@@ -580,7 +585,7 @@ if __name__ == "__main__":
 
     # Don't change this. Adapt initialization to your environment
     simulator = AdXGameSimulator()
-    simulator.run_simulation(agents=test_agents, num_simulations=500)
+    simulator.run_simulation(agents=test_agents, num_simulations=250)
 
     # agent history debugging
     def stats_print(agent: BetterNDaysNCampaignsAgent):
