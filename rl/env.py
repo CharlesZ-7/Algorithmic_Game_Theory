@@ -16,6 +16,19 @@ from adx.pmfs import PMF
 from adx.tier1_ndays_ncampaign_agent import Tier1NDaysNCampaignsAgent
 from adx.states import CampaignBidderState
 from adx.agents import NDaysNCampaignsAgent
+from waterfall_algorithm import waterfall
+from training_agents import *
+
+market_segments = [
+    MarketSegment(("Male", "Young", "LowIncome")),
+    MarketSegment(("Male", "Young", "HighIncome")),
+    MarketSegment(("Male", "Old", "LowIncome")),
+    MarketSegment(("Male", "Old", "HighIncome")),
+    MarketSegment(("Female", "Young", "LowIncome")),
+    MarketSegment(("Female", "Young", "HighIncome")),
+    MarketSegment(("Female", "Old", "LowIncome")),
+    MarketSegment(("Female", "Old", "HighIncome"))
+]
 
 CONFIG = {
         'num_agents': 10,
@@ -117,15 +130,11 @@ class MyEnv(gym.Env):
 
         # env spaces
         self.action_space = gym.spaces.Box(
-            low=np.array([0] * 8*5, dtype=np.float32),
-            high=np.array([1e2] * 8*5, dtype=np.float32),
+            low=np.array([0] * 4, dtype=np.float32),
+            high=np.array([1] * 4, dtype=np.float32),
             dtype=np.float32
         )
         self.observation_space = gym.spaces.Box(
-            # day, quality score, profit, ... campaign info ...
-            # low   = np.array([0,  0, -1e3] + [0] * 7*5),
-            # high  = np.array([10, 1,  1e5] + [1e5] * 7*5),
-            # dtype = [np.int64, np.float32, np.float32] + [np.float32] * 7*5
             low=np.array([-1e4] * (3 + 7*5), dtype=np.float32),
             high=np.array([1e5] * (3 + 7*5), dtype=np.float32),
             dtype=np.float32
@@ -274,7 +283,19 @@ class MyEnv(gym.Env):
     def reset(self, seed=None, options=None):
 
         # input agents
-        agents: list[NDaysNCampaignsAgent] = [Tier1NDaysNCampaignsAgent(name=f"Agent {i + 1}") for i in range(10)]
+
+        randcamp_agent = RandCampNDaysNCampaignsAgent()
+        campaign_agent = CampaignNDaysNCampaignsAgent()
+        better_agent = BetterNDaysNCampaignsAgent()
+        lessrand_agent = LessRandNDaysNCampaignsAgent(name="LessRand Agent", score_multiplier=-2)
+        day_agent = DayNDaysNCampaignsAgent()
+        bid_agent = BidNDaysNCampaignsAgent()
+        wf_agent = WFNDaysNCampaignsAgent()
+        
+        test_agents  = [SmartNDaysNCampaignsAgent(name=f"Smart Agent 1", score_multiplier=3), SmartNDaysNCampaignsAgent(name=f"Smart Agent 3", score_multiplier=-3)]
+        test_agents += [randcamp_agent, campaign_agent, better_agent, WFNDaysNCampaignsAgent(), day_agent, bid_agent, wf_agent]
+
+        agents: list[NDaysNCampaignsAgent] = [RLNDaysNCampaignsAgent()] + test_agents
 
         # logging profits
         self.total_profits = {agent : 0.0 for agent in agents}
@@ -403,39 +424,62 @@ class MyEnv(gym.Env):
         rl_agent: NDaysNCampaignsAgent = self.agents[0]
 
         # action
-        segments = [
-            MarketSegment(("Male", "Young", "LowIncome")),
-            MarketSegment(("Male", "Young", "HighIncome")),
-            MarketSegment(("Male", "Old", "LowIncome")),
-            MarketSegment(("Male", "Old", "HighIncome")),
-            MarketSegment(("Female", "Young", "LowIncome")),
-            MarketSegment(("Female", "Young", "HighIncome")),
-            MarketSegment(("Female", "Old", "LowIncome")),
-            MarketSegment(("Female", "Old", "HighIncome"))
-        ]
+
+
+
+
+
+
+
         
         # redefine agent bidding functions
         def rl_agent_get_ad_bids() -> Set[BidBundle]:
             bundles = set()
-            n = len(segments)
             campaigns = rl_agent.get_active_campaigns().union(rl_agent.my_campaigns)
-            index = 0
+
+            # use waterfall algorithm
+            allocations = waterfall(rl_agent.current_day, campaigns.union(rl_agent.campaign_store))
+
+            # find the lowest price among our allocations
+            prices = {}
             for campaign in campaigns:
-                if index >= 5: break
+                if campaign not in allocations: continue
+                for segment, price, allocation in allocations[campaign]:
+                    if segment in prices:
+                        prices[segment] = min(prices[segment], price)
+                    else:
+                        prices[segment] = price
+
+            # bids
+            for campaign in campaigns:
+
+                # checking if the campaign is active
+                if campaign.end_day < rl_agent.current_day: continue
+                if campaign.start_day > rl_agent.current_day: continue
+
+                # bidding calculations
                 bid_entries = set()
-                segment_index = 0
-                for segment in segments:
+                subsets = set()
+                for segment in market_segments:
+                    if campaign.target_segment.issuperset(segment):
+                        subsets.add(segment)
+                n = len(subsets)
+                for segment in subsets:
                     auction_item = segment
-                    bid_per_item = min(action[segment_index + 8*index], campaign.budget / n)
+                    bid_per_item = campaign.budget / (n * campaign.reach)
+
+                    # use waterfall bidding
+                    if segment in prices:
+                        bid_per_item = action[0] * bid_per_item + (1 - action[0]) * prices[segment]
+                        # bid_per_item = (bid_per_item + prices[segment]) / 2
+
                     bid = Bid(
                         bidder=rl_agent,
                         auction_item=auction_item,
                         bid_per_item=bid_per_item,
                         bid_limit=campaign.budget / n
                     )
-                    segment_index += 1
                     bid_entries.add(bid)
-                index += 1
                 limit = campaign.budget
                 bundle = BidBundle(
                     campaign_id=campaign.uid,
@@ -445,13 +489,87 @@ class MyEnv(gym.Env):
                 bundles.add(bundle)
             return bundles
     
+
         def rl_agent_get_campaign_bids(campaigns_for_auction: Set[Campaign]) -> Dict[Campaign, float]:
+            # rl_agent.count_won_auctions(campaigns_for_auction)
+            # bids = {}
+            # for campaign in campaigns_for_auction:
+            #     # bids[campaign] = campaign.reach * 0.125
+            #     bids[campaign] = campaign.reach * 0.1
+            # return bids
+
+            rl_agent.campaign_store = rl_agent.campaign_store.union(campaigns_for_auction)
+
+            # parameters
+            delta = 0.1
+            min_alpha = 0.1
+            # reward_multiplier = 0.25
+            # score_multiplier = -3.0
+            # day_multiplier = 1.
+
+            reward_multiplier = 0.25 * (1. + action[1] - 0.5)
+            score_multiplier = (action[2] - 0.5) * 6
+            day_multiplier = (1. + action[3] - 0.5)
+
+            # take own campaigns into account
+            my_campaigns = rl_agent.get_active_campaigns().union(rl_agent.my_campaigns)
+
+            # remove inactive campaigns
+            reduced_campaigns: Set[Campaign] = set()
+            for campaign in my_campaigns:
+                if campaign.end_day < rl_agent.current_day:
+                    continue
+                reduced_campaigns.add(campaign)
+
+            # update auction prices for each campaign
+            for campaign in rl_agent.campaign_auction_history:
+                if campaign not in my_campaigns:
+                    alpha = rl_agent.campaign_history[campaign.target_segment] - delta
+
+                    # alpha *= 1. + (self.random.random() - 0.45) / 5 # randomness
+                    # alpha *= 1. + (self.random.random() - 0.45) / 8 # randomness
+
+                    # take into account the number of days
+                    day_difference = float(campaign.end_day - campaign.start_day) / 6.
+                    if day_difference == 0.:
+                        day_difference = 1.
+                    # alpha *= 1 + day_difference
+                    alpha *= (1 - day_difference) * day_multiplier
+
+                    if len(reduced_campaigns) > 0: 
+                        score = 0
+                        for reduced_campaign in reduced_campaigns:
+                            if reduced_campaign.target_segment.issubset(campaign.target_segment) or reduced_campaign.target_segment.issuperset(campaign.target_segment):
+                                score += 1
+                        score /= len(reduced_campaigns)
+                        alpha *= 1. - score * score_multiplier
+                    
+                    rl_agent.campaign_history[campaign.target_segment] = max(alpha, min_alpha)
+                else:
+                    rl_agent.campaign_history[campaign.target_segment] += delta * reward_multiplier
+
+            # counting for stats
+            rl_agent.count_won_auctions(campaigns_for_auction)
+
+            # create bids
             bids = {}
-            campaigns = rl_agent.get_active_campaigns().union(rl_agent.my_campaigns)
             for campaign in campaigns_for_auction:
-                if (len(campaigns) >= 5): break 
-                bids[campaign] = campaign.reach # bid the reach... eventually bid higher than the reach
+                if campaign.target_segment not in rl_agent.campaign_history:
+                    rl_agent.campaign_history[campaign.target_segment] = 0.25
+                bids[campaign] = campaign.reach * rl_agent.campaign_history[campaign.target_segment]
+                # bids[campaign] *= 1. + (self.random.random() - 0.45) / 3
+
+            # return campaign bids
             return bids
+        
+
+
+
+
+
+
+
+
 
         # redefine agent bidding functions
         rl_agent.get_ad_bids = rl_agent_get_ad_bids
@@ -466,7 +584,7 @@ class MyEnv(gym.Env):
 
         # campaigns
         campaigns = list(rl_agent.get_active_campaigns().union(rl_agent.my_campaigns))
-        campaign_features = np.zeros((7*5), dtype=np.float32) # at most 7 campaigns
+        campaign_features = np.zeros((7*5), dtype=np.float32) # at most 5 campaigns
         for i in range(len(campaigns)):
             if i >= 5: break # capping out
             campaign_features[0+i*7] = campaigns[i].budget
@@ -481,11 +599,13 @@ class MyEnv(gym.Env):
         obs = np.zeros(3 + 7*5)
         obs[0] = day
         obs[1] = quality_score
-        obs[2] = rl_agent.profit
+        obs[2] = rl_agent.profit / 30000
         obs[3:] = campaign_features
 
+
+
         # <obs>, <reward: float>, <terminated: bool>, <truncated: bool>, <info: dict>
-        return obs, rl_agent.profit, complete, False, {}
+        return obs, rl_agent.profit / 30000, complete, False, {}
     
 # env testing
 if __name__ == "__main__":
@@ -497,18 +617,3 @@ if __name__ == "__main__":
     for _ in range(5):  
         obs, rewards, done, truncated, info = env.step(env.action_space.sample())
         print(obs)
-
-
-# notes:
-    # maybe it has too much control right now...
-    # it needs to be able to increase or decrease a bit...
-
-
-    # find the critical bid and then let it increase or decrease bit by bit...
-
-
-    # better define the observation spaces???
-    # get these smaller so rl can learn better maybe...
-    # but also maybe not...
-
-    # just let it play against a single "smart agent"
