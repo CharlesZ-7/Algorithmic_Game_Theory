@@ -1,5 +1,4 @@
-# CS1440/2440 Final Project: Ad Exchange Simulation (Under Constructions...)
-
+# CS2440 Final Project: Ad Exchange Simulation
 # Introduction
 
 # Advertising Auctions
@@ -10,9 +9,11 @@
 
 # Campaign Auctions
 
-## Q Learning
-
 ## LSTM Neural Network
+
+## Q Learning + Proximal Policy Optimization Algorithms
+
+# Quality Score Protection Mechanism
 
 # Summary
 
