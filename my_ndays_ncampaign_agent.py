@@ -7,7 +7,7 @@ from typing import Set, Dict, List
 from rl.training_agents import WFNDaysNCampaignsAgent
 
 class MyNDaysNCampaignsAgent(WFNDaysNCampaignsAgent):
-    def __init__(self, name = "My Agent"):
+    def __init__(self, name = "WF Agent"):
         super().__init__()
         self.name = name
 
