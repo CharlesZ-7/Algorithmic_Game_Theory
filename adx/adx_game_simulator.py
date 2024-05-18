@@ -240,14 +240,14 @@ class AdXGameSimulator:
         print("\n\t################# SIMULATION RESULTS ##################")
         print("\n\t#### Agent \t\t# Profit \t###")
         print("\n\t###########################################")
-        for agent in sorted(self.agents, key=lambda a: total_profits[a], reverse=True):
-            print(f"\n\t### {agent.name:12} \t# {total_profits[agent]/num_simulations:8.2f} \t###")
+        for agent in sorted(self.agents, key=lambda a: total_profits[a.name], reverse=True):
+            print(f"\n\t### {agent.name:12} \t# {total_profits[agent.name]/num_simulations:8.2f} \t###")
         print("\n\t###########################################")
-        winner = max(self.agents, key=lambda a: total_profits[a])
+        winner = max(self.agents, key=lambda a: total_profits[a.name])
         print(f"\n\t@@@ WINNER: {winner.name} @@@")
 
     def run_simulation(self, agents: list[NDaysNCampaignsAgent], num_simulations: int) -> None:
-        total_profits = {agent : 0.0 for agent in agents}
+        total_profits = {agent.name : 0.0 for agent in agents}
         for i in range(num_simulations):
             self.states = self.init_agents(agents)
             self.campaigns = dict()
@@ -255,6 +255,7 @@ class AdXGameSimulator:
             for agent in self.agents:    
                     agent.current_game = i + 1 
                     agent.my_campaigns = set()
+                    agent.on_new_game()
                     random_campaign = self.generate_campaign(start_day=1)
                     agent_state = self.states[agent]
                     random_campaign.budget = random_campaign.reach
@@ -321,6 +322,7 @@ class AdXGameSimulator:
                         agent.my_campaigns.add(random_campaign)
                         self.campaigns[random_campaign.uid] = random_campaign
             for agent in self.agents:
-                total_profits[agent] += self.states[agent].profits 
+                total_profits[agent.name] += self.states[agent].profits 
             self.print_game_results()
         self.print_final_results(total_profits, num_simulations)
+        return total_profits
