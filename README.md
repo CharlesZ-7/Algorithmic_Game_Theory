@@ -11,7 +11,7 @@
 
 ## LSTM Neural Network
 
-## Q Learning + Proximal Policy Optimization Algorithms
+## Deep Q Learning + Proximal Policy Optimization
 
 # Quality Score Protection Mechanism
 
